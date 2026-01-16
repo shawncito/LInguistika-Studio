@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/mockApi';
 import { Matricula, Tutor, Curso, Estudiante } from '../types';
-import { Button, Card, Select, Label } from '../components/UI';
-import { Plus, XCircle, AlertCircle } from 'lucide-react';
+import { Button, Card, Select, Label, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge } from '../components/UI';
+import { Plus, XCircle, AlertCircle, Calendar, User, BookOpen, GraduationCap } from 'lucide-react';
 
 const Matriculas: React.FC = () => {
   const [matriculas, setMatriculas] = useState<Matricula[]>([]);
@@ -56,115 +56,144 @@ const Matriculas: React.FC = () => {
     }
   };
 
-  if (loading) return <div>Cargando matrículas...</div>;
+  if (loading) return (
+      <div className="flex flex-col items-center justify-center h-[50vh]">
+          <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-4" />
+          <p className="text-sm font-bold text-slate-400">Verificando inscripciones...</p>
+      </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-12">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 border-b border-slate-200 pb-10">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Matrículas e Inscripciones</h1>
-          <p className="text-gray-500">Relación de alumnos, cursos y tutores asignados.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Expediente de Matrículas</h1>
+          <p className="text-slate-500 font-medium mt-2">Vínculos entre alumnos, cursos y docentes</p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={() => setShowModal(true)} variant="primary" className="h-12 px-8 gap-3">
+          <Plus className="w-5 h-5" />
           Nueva Matrícula
         </Button>
-      </div>
+      </header>
 
-      <Card className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-              <th className="px-6 py-4 font-semibold">Estudiante</th>
-              <th className="px-6 py-4 font-semibold">Curso</th>
-              <th className="px-6 py-4 font-semibold">Tutor</th>
-              <th className="px-6 py-4 font-semibold">Fecha Inscripción</th>
-              <th className="px-6 py-4 font-semibold text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {matriculas.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No hay matrículas activas.</td>
-              </tr>
-            ) : (
-              matriculas.map((m) => (
-                <tr key={m.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{m.estudiante_nombre}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-700">{m.curso_nombre}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-700">{m.tutor_nombre}</div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-50/50">
+            <TableHead>Estudiante</TableHead>
+            <TableHead>Curso Asignado</TableHead>
+            <TableHead>Tutor Responsable</TableHead>
+            <TableHead>Fecha Inscripción</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {matriculas.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="py-24 text-center text-slate-400 font-bold uppercase tracking-widest italic">No se registran matrículas activas</TableCell>
+            </TableRow>
+          ) : (
+            matriculas.map((m) => (
+              <TableRow key={m.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold text-slate-900">{m.estudiante_nombre}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <BookOpen className="w-4 h-4 text-blue-500" />
+                    <span className="font-medium text-slate-700">{m.curso_nombre}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <GraduationCap className="w-4 h-4 text-emerald-500" />
+                    <span className="text-slate-600 font-semibold">{m.tutor_nombre}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-slate-400 font-medium">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
                     {new Date(m.fecha_inscripcion).toLocaleDateString('es-ES')}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => handleCancel(m.id)} 
-                      className="text-red-400 hover:text-red-600 flex items-center justify-end w-full"
-                    >
-                      <XCircle className="w-5 h-5 mr-1" />
-                      <span className="text-sm">Cancelar</span>
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </Card>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => handleCancel(m.id)} 
+                    className="gap-2 rounded-xl"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Cancelar
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <Card className="w-full max-w-md p-6">
-            <h2 className="text-xl font-bold mb-4">Nueva Matrícula</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Seleccionar Estudiante *</Label>
-                <Select 
-                  value={formData.estudiante_id} 
-                  onChange={(e) => setFormData({...formData, estudiante_id: parseInt(e.target.value)})}
-                >
-                  <option value={0}>Selecciona un alumno...</option>
-                  {estudiantes.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </Select>
-              </div>
-              <div>
-                <Label>Seleccionar Curso *</Label>
-                <Select 
-                  value={formData.curso_id} 
-                  onChange={(e) => setFormData({...formData, curso_id: parseInt(e.target.value)})}
-                >
-                  <option value={0}>Selecciona un curso...</option>
-                  {cursos.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.nivel})</option>)}
-                </Select>
-              </div>
-              <div>
-                <Label>Asignar Tutor *</Label>
-                <Select 
-                  value={formData.tutor_id} 
-                  onChange={(e) => setFormData({...formData, tutor_id: parseInt(e.target.value)})}
-                >
-                  <option value={0}>Selecciona un tutor...</option>
-                  {tutores.map(t => <option key={t.id} value={t.id}>{t.nombre} - {t.especialidad}</option>)}
-                </Select>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <Card className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-none">
+            <div className="p-10 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Formalizar Matrícula</h2>
+                    <p className="text-sm text-slate-500 mt-1">Vincula alumnos a programas de estudio</p>
+                </div>
+                <button onClick={() => setShowModal(false)} className="p-3 rounded-full hover:bg-white border border-slate-200 text-slate-400 transition-all">
+                    <XCircle className="w-6 h-6" />
+                </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-10 space-y-8">
+              <div className="space-y-6">
+                <div>
+                  <Label>Seleccionar Alumno *</Label>
+                  <Select 
+                    value={formData.estudiante_id} 
+                    onChange={(e) => setFormData({...formData, estudiante_id: parseInt(e.target.value)})}
+                  >
+                    <option value={0}>Buscar por nombre...</option>
+                    {estudiantes.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                  </Select>
+                </div>
+                <div>
+                  <Label>Programa de Estudio *</Label>
+                  <Select 
+                    value={formData.curso_id} 
+                    onChange={(e) => setFormData({...formData, curso_id: parseInt(e.target.value)})}
+                  >
+                    <option value={0}>Selecciona un curso...</option>
+                    {cursos.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.nivel})</option>)}
+                  </Select>
+                </div>
+                <div>
+                  <Label>Asignar Tutoría *</Label>
+                  <Select 
+                    value={formData.tutor_id} 
+                    onChange={(e) => setFormData({...formData, tutor_id: parseInt(e.target.value)})}
+                  >
+                    <option value={0}>Elegir profesional docente...</option>
+                    {tutores.map(t => <option key={t.id} value={t.id}>{t.nombre} - {t.especialidad}</option>)}
+                  </Select>
+                </div>
               </div>
               
-              <div className="bg-blue-50 p-3 rounded-lg flex items-start text-blue-800 text-xs">
-                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span>Al crear la matrícula se formaliza el vínculo entre el alumno y el tutor para el curso seleccionado.</span>
+              <div className="bg-blue-50/50 p-5 rounded-3xl border border-blue-100 flex items-start text-blue-700 text-xs leading-relaxed font-bold">
+                <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0 text-blue-600" />
+                <span>Esta acción formalizará el expediente del alumno y habilitará la programación de sesiones. Verifique que el docente tenga disponibilidad.</span>
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowModal(false)}>
-                  Cerrar
+              <div className="flex gap-4 pt-4">
+                <Button type="button" variant="secondary" className="flex-1 rounded-2xl h-14" onClick={() => setShowModal(false)}>
+                  Descartar
                 </Button>
-                <Button type="submit" className="flex-1">
-                  Matricular
+                <Button type="submit" variant="primary" className="flex-1 rounded-2xl h-14 font-black shadow-xl shadow-blue-100">
+                  Matricular Alumno
                 </Button>
               </div>
             </form>
