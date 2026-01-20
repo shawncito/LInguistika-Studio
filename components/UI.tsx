@@ -14,13 +14,14 @@ export const Button: React.FC<ButtonProps> = ({
   className = '', 
   ...props 
 }) => {
-  const base = "inline-flex items-center justify-center rounded-lg text-sm font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50 select-none shadow-sm hover:shadow-md";
+  const base = "inline-flex items-center justify-center rounded-lg text-sm font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50 select-none shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
   
   const variants = {
-    primary: "bg-blue-600 text-white hover:bg-blue-700",
-    secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
-    outline: "border-2 border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50",
-    ghost: "text-slate-500 hover:text-slate-900 hover:bg-slate-100 shadow-none",
+    primary: "bg-brand-blue text-white hover:bg-blue-700",
+    // Secondary buttons were blending into white surfaces; keep them lightly tinted.
+    secondary: "bg-brand-blue/10 text-brand-navy border border-brand-blue/30 hover:bg-brand-blue/15",
+    outline: "border-2 border-brand-blue bg-transparent text-brand-blue hover:bg-brand-blue/10",
+    ghost: "text-brand-navy hover:text-brand-blue hover:bg-brand-blue/10 shadow-none",
     destructive: "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100",
     success: "bg-emerald-600 text-white hover:bg-emerald-700",
   };
@@ -41,17 +42,17 @@ export const Button: React.FC<ButtonProps> = ({
 
 // --- CARD (Material Paper) ---
 export const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
-  <div className={`rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-300 ${className}`}>
+  <div className={`rounded-2xl border border-brand-blue/15 bg-white shadow-sm hover:shadow-md transition-shadow duration-300 ${className}`}>
     {children}
   </div>
 );
 
 export const CardHeader: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
-  <div className={`flex flex-col space-y-1.5 p-6 border-b border-slate-50 ${className}`}>{children}</div>
+  <div className={`flex flex-col space-y-1.5 p-6 border-b border-brand-blue/10 ${className}`}>{children}</div>
 );
 
 export const CardTitle: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
-  <h3 className={`font-bold text-xl text-slate-900 tracking-tight ${className}`}>{children}</h3>
+  <h3 className={`font-bold text-xl text-brand-navy tracking-tight ${className}`}>{children}</h3>
 );
 
 export const CardDescription: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
@@ -64,7 +65,7 @@ export const CardContent: React.FC<{ children: React.ReactNode; className?: stri
 
 // --- FORM ---
 export const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children, className = "", ...props }) => (
-  <label {...props} className={`text-xs font-bold text-slate-700 mb-2 block uppercase tracking-wider ${className}`}>
+  <label {...props} className={`text-xs font-bold text-brand-navy mb-2 block uppercase tracking-wider ${className}`}>
     {children}
   </label>
 );
@@ -72,7 +73,7 @@ export const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ c
 export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ className = "", ...props }) => (
   <input
     {...props}
-    className={`flex h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${className}`}
+    className={`flex h-12 w-full rounded-xl border border-brand-blue/20 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue ${className}`}
   />
 );
 
@@ -80,7 +81,7 @@ export const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (
   <div className="relative group">
     <select
       {...props}
-      className={`flex h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${className}`}
+      className={`flex h-12 w-full appearance-none rounded-xl border border-brand-blue/20 bg-white px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue transition-all ${className}`}
     >
       {children}
     </select>
@@ -97,13 +98,13 @@ export const Badge: React.FC<{
   className?: string;
 }> = ({ children, variant = 'default', className = "" }) => {
   const variants = {
-    default: "bg-slate-100 text-slate-700 border border-slate-200",
-    secondary: "bg-blue-50 text-blue-700 border border-blue-100",
-    info: "bg-indigo-50 text-indigo-700 border border-indigo-100",
+    default: "bg-brand-blue/10 text-brand-navy border border-brand-blue/20",
+    secondary: "bg-brand-blue/10 text-brand-blue border border-brand-blue/20",
+    info: "bg-brand-cyan/15 text-brand-cyan border border-brand-cyan/30",
     destructive: "bg-red-50 text-red-700 border border-red-100",
     outline: "border border-slate-300 text-slate-600",
     success: "bg-emerald-50 text-emerald-700 border border-emerald-100",
-    warning: "bg-amber-50 text-amber-700 border border-amber-100",
+    warning: "bg-brand-yellow/20 text-brand-navy border border-brand-yellow/40",
   };
   return (
     <div className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${variants[variant]} ${className}`}>
@@ -114,13 +115,13 @@ export const Badge: React.FC<{
 
 // --- TABLE ---
 export const Table: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
-  <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+  <div className="w-full overflow-hidden rounded-2xl border border-brand-blue/15 bg-white shadow-sm">
     <table className={`w-full text-left border-collapse ${className}`}>{children}</table>
   </div>
 );
 
 export const TableHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <thead className="bg-slate-50/50 border-b border-slate-200">{children}</thead>
+  <thead className="bg-brand-blue/5 border-b border-brand-blue/15">{children}</thead>
 );
 
 export const TableBody: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -128,11 +129,11 @@ export const TableBody: React.FC<{ children: React.ReactNode }> = ({ children })
 );
 
 export const TableRow: React.FC<React.HTMLAttributes<HTMLTableRowElement>> = ({ children, className = "", ...props }) => (
-  <tr className={`transition-colors hover:bg-slate-50/50 ${className}`} {...props}>{children}</tr>
+  <tr className={`transition-colors hover:bg-brand-blue/5 ${className}`} {...props}>{children}</tr>
 );
 
 export const TableHead: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = ({ children, className = "", ...props }) => (
-  <th className={`h-12 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider ${className}`} {...props}>{children}</th>
+  <th className={`h-12 px-6 text-xs font-bold text-brand-navy uppercase tracking-wider ${className}`} {...props}>{children}</th>
 );
 
 export const TableCell: React.FC<React.TdHTMLAttributes<HTMLTableDataCellElement>> = ({ children, className = "", ...props }) => (
@@ -145,10 +146,10 @@ export const Dialog: React.FC<{ isOpen: boolean; onClose: () => void; title: str
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative z-[101] w-full max-w-lg bg-white rounded-3xl border border-slate-200 shadow-2xl animate-in fade-in zoom-in duration-300">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 transition-colors p-2 rounded-full hover:bg-slate-100">
+      <div className="relative z-[101] w-full max-w-lg bg-white rounded-3xl border border-brand-blue/20 shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div className="flex items-center justify-between p-6 border-b border-brand-blue/10">
+          <h2 className="text-xl font-bold text-brand-navy">{title}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-brand-navy transition-colors p-2 rounded-full hover:bg-brand-blue/10">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </button>
         </div>
