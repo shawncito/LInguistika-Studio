@@ -25,7 +25,6 @@ export interface Tutor {
   email: string;
   telefono: string;
   especialidad: string;
-  tarifa_por_hora: number;
   horario_preferido?: string | null;
   dias?: string[] | null;
   dias_turno?: Record<string, 'Tarde' | 'Noche'> | null;
@@ -43,7 +42,15 @@ export interface Curso {
   tipo_clase?: 'grupal' | 'tutoria';
   dias?: string[] | null;
   dias_turno?: Record<string, 'Tarde' | 'Noche'> | null;
+  dias_schedule?: Record<string, {
+    turno: 'Tarde' | 'Noche';
+    hora_inicio: string;
+    hora_fin: string;
+    duracion_horas?: number;
+  }> | null;
   dias_semana?: string | string[] | null;
+  costo_curso?: number;
+  pago_tutor?: number;
   estado: number;
   created_at: string;
 }
@@ -131,6 +138,38 @@ export interface Pago {
   // Joined fields
   tutor_nombre?: string;
   tutor_email?: string;
+}
+
+export interface SesionClase {
+  id: number;
+  curso_id: number;
+  tutor_id: number;
+  fecha: string;
+  dia_semana: string;
+  hora_inicio: string;
+  hora_fin: string;
+  duracion_horas: number;
+  estado: 'programada' | 'dada' | 'cancelada';
+  created_at: string;
+  // Joined fields
+  curso_nombre?: string;
+  tutor_nombre?: string;
+}
+
+export interface MovimientoDinero {
+  id: number;
+  curso_id: number;
+  matricula_id?: number;
+  tipo: 'ingreso_estudiante' | 'pago_tutor' | 'pago_tutor_pendiente';
+  monto: number;
+  factura_numero?: string;
+  fecha_pago: string;
+  fecha_comprobante?: string;
+  estado: 'pendiente' | 'completado' | 'verificado';
+  notas?: string;
+  created_at: string;
+  // Joined fields
+  curso_nombre?: string;
 }
 
 export interface Stats {

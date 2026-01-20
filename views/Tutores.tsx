@@ -21,7 +21,6 @@ const Tutores: React.FC = () => {
     email: '',
     telefono: '',
     especialidad: 'Inglés',
-    tarifa_por_hora: 0,
     horario_tipo: 'predefinido',
     dias: [] as string[],
     dias_turno: {} as Record<string, 'Tarde' | 'Noche'>
@@ -65,7 +64,6 @@ const Tutores: React.FC = () => {
 
     if (!formData.nombre.trim()) newErrors.nombre = 'Nombre requerido';
     if (!formData.especialidad) newErrors.especialidad = 'Especialidad requerida';
-    if (formData.tarifa_por_hora <= 0) newErrors.tarifa_por_hora = 'Tarifa debe ser mayor a 0';
     if (formData.telefono && !validatePhone(formData.telefono)) {
       newErrors.telefono = 'Teléfono inválido';
     }
@@ -83,7 +81,6 @@ const Tutores: React.FC = () => {
         email: formData.email.trim() || null,
         telefono: formData.telefono.trim(),
         especialidad: formData.especialidad,
-        tarifa_por_hora: formData.tarifa_por_hora,
         horario_tipo: formData.horario_tipo,
         dias_turno: formData.dias_turno
       };
@@ -109,7 +106,6 @@ const Tutores: React.FC = () => {
       email: '',
       telefono: '',
       especialidad: 'Inglés',
-      tarifa_por_hora: 0,
       horario_tipo: 'predefinido',
       dias: [],
       dias_turno: {}
@@ -125,7 +121,6 @@ const Tutores: React.FC = () => {
       email: tutor.email || '',
       telefono: tutor.telefono || '',
       especialidad: tutor.especialidad,
-      tarifa_por_hora: tutor.tarifa_por_hora,
       horario_tipo: tutor.horario_tipo || 'predefinido',
       dias: [],
       dias_turno: tutor.dias_turno || {}
@@ -219,30 +214,15 @@ const Tutores: React.FC = () => {
                 </div>
               </div>
 
-              {/* Especialidad y Tarifa */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Especialidad *</Label>
-                  <Select value={formData.especialidad} onChange={(e) => setFormData(prev => ({ ...prev, especialidad: e.target.value }))}>
-                    {ESPECIALIDADES.map(esp => (
-                      <option key={esp} value={esp}>{esp}</option>
-                    ))}
-                  </Select>
-                  {errors.especialidad && <p className="text-red-500 text-sm mt-1">{errors.especialidad}</p>}
-                </div>
-                <div>
-                  <Label>Tarifa por Hora (₡) *</Label>
-                  <Input
-                    type="number"
-                    value={formData.tarifa_por_hora || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, tarifa_por_hora: parseFloat(e.target.value) || 0 }))}
-                    placeholder="25000"
-                    min="0"
-                    step="500"
-                    className={errors.tarifa_por_hora ? 'border-red-500' : ''}
-                  />
-                  {errors.tarifa_por_hora && <p className="text-red-500 text-sm mt-1">{errors.tarifa_por_hora}</p>}
-                </div>
+              {/* Especialidad */}
+              <div>
+                <Label>Especialidad *</Label>
+                <Select value={formData.especialidad} onChange={(e) => setFormData(prev => ({ ...prev, especialidad: e.target.value }))}>
+                  {ESPECIALIDADES.map(esp => (
+                    <option key={esp} value={esp}>{esp}</option>
+                  ))}
+                </Select>
+                {errors.especialidad && <p className="text-red-500 text-sm mt-1">{errors.especialidad}</p>}
               </div>
 
               {/* Horario - Días */}
@@ -381,17 +361,11 @@ const Tutores: React.FC = () => {
             </CardHeader>
 
             <div className="px-8 space-y-4 pb-8">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 shadow-inner">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Tarifa/Hora</p>
-                  <p className="text-xl font-black text-slate-900">{formatCRC(tutor.tarifa_por_hora)}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-inner">
-                  <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Estado</p>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-200" />
-                    <span className="text-xs font-black text-emerald-700">Activo</span>
-                  </div>
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-inner">
+                <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Estado</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-200" />
+                  <span className="text-xs font-black text-emerald-700">Activo</span>
                 </div>
               </div>
               

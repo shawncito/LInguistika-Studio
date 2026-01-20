@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { Curso } from '../types';
 import { 
   Button, Card, CardHeader, CardTitle, CardDescription, 
-  Badge, Input, Label, Select, Dialog
+  Badge, Input, Label, Select
 } from '../components/UI';
 import { Plus, Edit, Trash2, BookOpen, Users as UsersIcon, Clock } from 'lucide-react';
 
@@ -24,8 +24,28 @@ const Cursos: React.FC = () => {
     tipo_clase: 'grupal', // 'grupal' o 'tutoria'
     max_estudiantes: 10,
     dias: [] as string[],
-    turno: ''
+    dias_turno: {} as Record<string, 'Tarde' | 'Noche'>,
+    dias_schedule: {} as Record<string, {
+      turno: 'Tarde' | 'Noche';
+      hora_inicio: string;
+      hora_fin: string;
+      duracion_horas?: number;
+    }>,
+    costo_curso: 0,
+    pago_tutor: 0
   });
+
+  // Función para calcular duración en horas
+  const calcularDuracionHoras = (horaInicio: string, horaFin: string): number => {
+    try {
+      const [hi, mi] = horaInicio.split(':').map(Number);
+      const [hf, mf] = horaFin.split(':').map(Number);
+      const minutosTotales = (hf * 60 + mf) - (hi * 60 + mi);
+      return parseFloat((minutosTotales / 60).toFixed(2));
+    } catch {
+      return 0;
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -44,9 +64,24 @@ const Cursos: React.FC = () => {
 
     if (!formData.nombre.trim()) newErrors.nombre = 'Nombre requerido';
     if (formData.dias.length === 0) newErrors.dias = 'Selecciona al menos un día';
-    if (!formData.turno) newErrors.turno = 'Selecciona un turno';
+    
+    // Validar que todos los días tengan turno asignado
+    for (const dia of formData.dias) {
+      if (!formData.dias_turno[dia]) {
+        newErrors.dias = 'Todos los días deben tener un turno asignado';
+        break;
+      }
+    }
+    
     if (formData.tipo_clase === 'grupal' && formData.max_estudiantes <= 0) {
       newErrors.max_estudiantes = 'Límite debe ser mayor a 0 para cursos grupales';
+    }
+
+    if (!formData.costo_curso || formData.costo_curso <= 0) {
+      newErrors.costo_curso = 'El costo del curso debe ser mayor a 0';
+    }
+    if (!formData.pago_tutor || formData.pago_tutor <= 0) {
+      newErrors.pago_tutor = 'El pago a tutores debe ser mayor a 0';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -62,7 +97,10 @@ const Cursos: React.FC = () => {
         tipo_clase: formData.tipo_clase,
         max_estudiantes: formData.tipo_clase === 'tutoria' ? null : formData.max_estudiantes,
         dias: formData.dias,
-        turno: formData.turno
+        dias_turno: formData.dias_turno,
+        dias_schedule: formData.dias_schedule,
+        costo_curso: formData.costo_curso,
+        pago_tutor: formData.pago_tutor
       };
 
       if (editingId) {
@@ -88,7 +126,10 @@ const Cursos: React.FC = () => {
       tipo_clase: 'grupal',
       max_estudiantes: 10,
       dias: [],
-      turno: ''
+      dias_turno: {},
+      dias_schedule: {},
+      costo_curso: 0,
+      pago_tutor: 0
     });
     setErrors({});
   };
@@ -102,7 +143,10 @@ const Cursos: React.FC = () => {
       tipo_clase: curso.tipo_clase || 'grupal',
       max_estudiantes: curso.max_estudiantes || 10,
       dias: Array.isArray(curso.dias) ? curso.dias : [],
-      turno: curso.turno || ''
+      dias_turno: curso.dias_turno || {},
+      dias_schedule: curso.dias_schedule || {},
+      costo_curso: curso.costo_curso || 0,
+      pago_tutor: curso.pago_tutor || 0
     });
     setShowModal(true);
   };
@@ -142,12 +186,19 @@ const Cursos: React.FC = () => {
       </header>
 
       {/* Modal de Formulario */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
+      {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
-            <CardHeader className="border-b border-slate-200">
-              <CardTitle>{editingId ? 'Editar Curso' : 'Nuevo Curso'}</CardTitle>
-              <CardDescription>Configura los detalles del programa académico</CardDescription>
+            <CardHeader className="border-b border-slate-200 flex justify-between items-start">
+              <div>
+                <CardTitle>{editingId ? 'Editar Curso' : 'Nuevo Curso'}</CardTitle>
+                <CardDescription>Configura los detalles del programa académico</CardDescription>
+              </div>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </CardHeader>
 
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
@@ -237,10 +288,23 @@ const Cursos: React.FC = () => {
                         type="checkbox"
                         checked={formData.dias.includes(dia)}
                         onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({ ...prev, dias: [...prev.dias, dia] }));
+                          const checked = e.target.checked;
+                          if (checked) {
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              dias: [...prev.dias, dia],
+                              dias_turno: { ...prev.dias_turno, [dia]: 'Tarde' }
+                            }));
                           } else {
-                            setFormData(prev => ({ ...prev, dias: prev.dias.filter(d => d !== dia) }));
+                            setFormData(prev => {
+                              const newDiasTurno = { ...prev.dias_turno };
+                              delete newDiasTurno[dia];
+                              return {
+                                ...prev,
+                                dias: prev.dias.filter(d => d !== dia),
+                                dias_turno: newDiasTurno
+                              };
+                            });
                           }
                         }}
                         className="rounded"
@@ -252,26 +316,142 @@ const Cursos: React.FC = () => {
                 {errors.dias && <p className="text-red-500 text-sm mt-2">{errors.dias}</p>}
               </div>
 
-              {/* Turno */}
-              <div>
-                <Label>Turno *</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  {TURNOS.map(turno => (
-                    <label key={turno} className="flex items-center gap-3 p-4 border-2 border-slate-200 rounded-lg hover:border-blue-400 cursor-pointer"
-                      style={{ borderColor: formData.turno === turno ? '#2563eb' : undefined }}>
-                      <input
-                        type="radio"
-                        name="turno"
-                        value={turno}
-                        checked={formData.turno === turno}
-                        onChange={(e) => setFormData(prev => ({ ...prev, turno: e.target.value }))}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm font-semibold text-slate-900">{turno}</span>
-                    </label>
-                  ))}
+              {/* Selección de turnos y horarios por día */}
+              {formData.dias.length > 0 && (
+                <div>
+                  <Label>Turnos y Horarios por Día *</Label>
+                  <div className="space-y-4 mt-2">
+                    {formData.dias.map(dia => (
+                      <div key={dia} className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-slate-700">{dia}</span>
+                          {formData.dias_schedule[dia]?.duracion_horas && (
+                            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                              {formData.dias_schedule[dia].duracion_horas}h
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Selección de turno */}
+                        <div className="flex gap-2">
+                          {TURNOS.map(turno => (
+                            <label
+                              key={turno}
+                              className="flex items-center gap-2 p-2 border border-slate-300 rounded hover:border-blue-400 cursor-pointer flex-1 text-sm"
+                              style={{ borderColor: formData.dias_schedule[dia]?.turno === turno ? '#2563eb' : undefined, backgroundColor: formData.dias_schedule[dia]?.turno === turno ? '#eff6ff' : undefined }}
+                            >
+                              <input
+                                type="radio"
+                                name={`turno-${dia}`}
+                                value={turno}
+                                checked={formData.dias_schedule[dia]?.turno === turno}
+                                onChange={(e) => {
+                                  const schedule = formData.dias_schedule[dia] || { turno: 'Tarde', hora_inicio: '14:00', hora_fin: '17:00' };
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    dias_schedule: {
+                                      ...prev.dias_schedule,
+                                      [dia]: { ...schedule, turno: e.target.value as 'Tarde' | 'Noche' }
+                                    }
+                                  }));
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <span className="font-semibold text-slate-900">{turno}</span>
+                            </label>
+                          ))}
+                        </div>
+                        
+                        {/* Selección de horas */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Hora Inicio</label>
+                            <Input
+                              type="time"
+                              value={formData.dias_schedule[dia]?.hora_inicio || '14:00'}
+                              onChange={(e) => {
+                                const horaInicio = e.target.value;
+                                const horaFin = formData.dias_schedule[dia]?.hora_fin || '17:00';
+                                const duracion = calcularDuracionHoras(horaInicio, horaFin);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  dias_schedule: {
+                                    ...prev.dias_schedule,
+                                    [dia]: {
+                                      ...prev.dias_schedule[dia],
+                                      hora_inicio: horaInicio,
+                                      duracion_horas: duracion
+                                    }
+                                  }
+                                }));
+                              }}
+                              className="h-9 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">Hora Fin</label>
+                            <Input
+                              type="time"
+                              value={formData.dias_schedule[dia]?.hora_fin || '17:00'}
+                              onChange={(e) => {
+                                const horaFin = e.target.value;
+                                const horaInicio = formData.dias_schedule[dia]?.hora_inicio || '14:00';
+                                const duracion = calcularDuracionHoras(horaInicio, horaFin);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  dias_schedule: {
+                                    ...prev.dias_schedule,
+                                    [dia]: {
+                                      ...prev.dias_schedule[dia],
+                                      hora_fin: horaFin,
+                                      duracion_horas: duracion
+                                    }
+                                  }
+                                }));
+                              }}
+                              className="h-9 text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                {errors.turno && <p className="text-red-500 text-sm mt-2">{errors.turno}</p>}
+              )}
+
+              {/* Costos del Curso */}
+              <div>
+                <Label className="text-lg font-semibold">💰 Costos</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <Label>Costo del Curso (₡) *</Label>
+                    <Input
+                      type="number"
+                      value={formData.costo_curso || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, costo_curso: parseFloat(e.target.value) || 0 }))}
+                      placeholder="Precio para estudiantes"
+                      min="0"
+                      step="0.01"
+                      className={errors.costo_curso ? 'border-red-500' : ''}
+                    />
+                    {errors.costo_curso && <p className="text-red-500 text-sm mt-1">{errors.costo_curso}</p>}
+                    <p className="text-xs text-slate-500 mt-1">Precio que pagan los estudiantes</p>
+                  </div>
+                  <div>
+                    <Label>Pago a Tutores (₡) *</Label>
+                    <Input
+                      type="number"
+                      value={formData.pago_tutor || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pago_tutor: parseFloat(e.target.value) || 0 }))}
+                      placeholder="Monto que recibe el tutor"
+                      min="0"
+                      step="0.01"
+                      className={errors.pago_tutor ? 'border-red-500' : ''}
+                    />
+                    {errors.pago_tutor && <p className="text-red-500 text-sm mt-1">{errors.pago_tutor}</p>}
+                    <p className="text-xs text-slate-500 mt-1">Monto que recibe cada tutor por enseñar</p>
+                  </div>
+                </div>
               </div>
 
               {/* Botones */}
@@ -299,7 +479,7 @@ const Cursos: React.FC = () => {
             </form>
           </Card>
         </div>
-      </Dialog>
+      )}
 
       {/* Grid de Cursos */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
@@ -360,7 +540,23 @@ const Cursos: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 text-slate-600">
                   <Clock className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm font-semibold">{curso.turno}</span>
+                  <span className="text-sm font-semibold">
+                    {curso.dias_turno && typeof curso.dias_turno === 'object' 
+                      ? Object.values(curso.dias_turno).join(', ') 
+                      : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Costos */}
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                  <p className="text-xs text-green-700 font-semibold mb-1">Costo del Curso</p>
+                  <p className="text-lg font-black text-green-900">₡{curso.costo_curso?.toLocaleString() || '0'}</p>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <p className="text-xs text-blue-700 font-semibold mb-1">Pago a Tutores</p>
+                  <p className="text-lg font-black text-blue-900">₡{curso.pago_tutor?.toLocaleString() || '0'}</p>
                 </div>
               </div>
 
@@ -368,7 +564,7 @@ const Cursos: React.FC = () => {
                 <div className="flex flex-wrap gap-1">
                   {curso.dias.map((dia) => (
                     <span key={dia} className="text-xs bg-blue-50 text-blue-700 font-semibold px-2 py-1 rounded">
-                      {dia.slice(0, 3)}
+                      {dia.slice(0, 3)} - {curso.dias_turno?.[dia] || 'N/A'}
                     </span>
                   ))}
                 </div>
