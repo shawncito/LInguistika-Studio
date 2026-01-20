@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
-import { Clase } from '../types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Input, Button } from '../components/UI';
+import { Matricula, Curso, Tutor, Estudiante } from '../types';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Input } from '../components/UI';
 import { formatCRC } from '../lib/format';
 import { 
   Users, BookOpen, GraduationCap, 
   ClipboardList, Clock, CreditCard,
   User as UserIcon, Calendar as CalendarIcon,
-  TrendingUp, Award, ChevronRight, Activity, Star, AlertCircle
+  TrendingUp, Award, ChevronRight
 } from 'lucide-react';
 
 interface Stats {
@@ -19,42 +19,100 @@ interface Stats {
   ingresos_pendientes: number;
 }
 
+interface SesionDelDia {
+  matricula_id: number;
+  curso_nombre: string;
+  estudiante_nombre: string;
+  tutor_nombre: string;
+  hora_inicio: string;
+  hora_fin: string;
+  duracion_horas: number;
+  turno: string;
+}
+
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [todayDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [agenda, setAgenda] = useState<Clase[]>([]);
-  const [todayAgenda, setTodayAgenda] = useState<Clase[]>([]);
-  const [resumen, setResumen] = useState<any[]>([]);
+  const [sesionesDelDia, setSesionesDelDia] = useState<SesionDelDia[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Función para obtener el día de la semana en español
+  const getDiaSemana = (fecha: string): string => {
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const date = new Date(fecha + 'T00:00:00');
+    return dias[date.getDay()];
+  };
+
+  // Función para calcular sesiones del día desde matrículas
+  const calcularSesionesDelDia = async (fecha: string) => {
+    try {
+      const diaSemana = getDiaSemana(fecha);
+      
+      // Obtener matrículas activas con sus relaciones
+      const matriculas = await api.matriculas.getAll();
+      const cursosPromises = matriculas.map(m => api.cursos.getById(m.curso_id));
+      const tutoresPromises = matriculas.map(m => api.tutores.getById(m.tutor_id));
+      const estudiantesPromises = matriculas.map(m => api.estudiantes.getById(m.estudiante_id));
+      
+      const [cursos, tutores, estudiantes] = await Promise.all([
+        Promise.all(cursosPromises),
+        Promise.all(tutoresPromises),
+        Promise.all(estudiantesPromises)
+      ]);
+
+      const sesiones: SesionDelDia[] = [];
+
+      matriculas.forEach((matricula, index) => {
+        const curso = cursos[index];
+        const tutor = tutores[index];
+        const estudiante = estudiantes[index];
+
+        // Verificar si el curso tiene clase este día
+        if (curso.dias_schedule && curso.dias_schedule[diaSemana]) {
+          const schedule = curso.dias_schedule[diaSemana];
+          sesiones.push({
+            matricula_id: matricula.id,
+            curso_nombre: curso.nombre,
+            estudiante_nombre: estudiante.nombre,
+            tutor_nombre: tutor.nombre,
+            hora_inicio: schedule.hora_inicio,
+            hora_fin: schedule.hora_fin,
+            duracion_horas: schedule.duracion_horas || 0,
+            turno: schedule.turno
+          });
+        }
+      });
+
+      // Ordenar por hora de inicio
+      sesiones.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+      setSesionesDelDia(sesiones);
+    } catch (error) {
+      console.error('Error al calcular sesiones:', error);
+      setSesionesDelDia([]);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Llamadas en paralelo
-      const [s, a, ta, r] = await Promise.all([
-        api.dashboard.getStats().catch(() => ({
-          tutores_activos: 0,
-          estudiantes_activos: 0,
-          cursos_activos: 0,
-          matriculas_activas: 0,
-          total_clases: 0,
-          ingresos_pendientes: 0
-        })),
-        api.dashboard.getAgenda(selectedDate).catch(() => []),
-        api.dashboard.getAgenda(todayDate).catch(() => []),
-        api.dashboard.getResumenTutores(selectedDate).catch(() => [])
-      ]);
-      setStats(s);
-      setAgenda(a);
-      setTodayAgenda(ta);
-      setResumen(r);
+      const statsData = await api.dashboard.getStats().catch(() => ({
+        tutores_activos: 0,
+        estudiantes_activos: 0,
+        cursos_activos: 0,
+        matriculas_activas: 0,
+        total_clases: 0,
+        ingresos_pendientes: 0
+      }));
+      setStats(statsData);
+      
+      // Calcular sesiones del día seleccionado
+      await calcularSesionesDelDia(selectedDate);
     } catch (err) {
       console.error('Error en dashboard:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, todayDate]);
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchData();
@@ -166,176 +224,74 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Main Content */}
-        <div className="lg:col-span-8 space-y-8">
-          {/* Agenda de Sesiones - Fecha Seleccionada */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                <CalendarIcon className="w-6 h-6 text-blue-600" />
-                Agenda de Sesiones
-              </h2>
-              <Input 
-                type="date" 
-                value={selectedDate} 
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="h-11 w-44 font-bold"
-              />
+      <div className="grid grid-cols-1 gap-10">
+        {/* Agenda de Sesiones - Fecha Seleccionada */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+              <CalendarIcon className="w-6 h-6 text-blue-600" />
+              Agenda de Sesiones
+            </h2>
+            <Input 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="h-11 w-44 font-bold"
+            />
+          </div>
+
+          {sesionesDelDia.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+              <Clock className="w-14 h-14 mb-3 text-slate-300" />
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sin sesiones para esta fecha</p>
             </div>
-
-            {agenda.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                <Clock className="w-14 h-14 mb-3 text-slate-300" />
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sin sesiones para esta fecha</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {agenda.map((clase) => (
-                  <Card key={clase.id} className="group border-slate-200 hover:border-blue-300 hover:shadow-md transition-all bg-white">
-                    <div className="p-6 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-6 flex-1">
-                        <div className="flex flex-col items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 group-hover:from-blue-100 group-hover:to-blue-200 transition-colors flex-shrink-0">
-                          <span className="text-xs font-bold text-blue-600 mb-1">HORA</span>
-                          <span className="text-lg font-black text-blue-900">{clase.hora_inicio}</span>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                            {clase.curso_nombre}
-                          </h4>
-                          <div className="flex items-center gap-4 mt-2 text-sm">
-                            <span className="flex items-center gap-2 font-semibold text-slate-600">
-                              <UserIcon className="w-4 h-4 text-blue-500" />
-                              {clase.estudiante_nombre}
-                            </span>
-                            <span className="text-slate-400">•</span>
-                            <span className="text-slate-500 italic">Docente: {clase.tutor_nombre}</span>
-                          </div>
-                        </div>
+          ) : (
+            <div className="space-y-3">
+              {sesionesDelDia.map((sesion, index) => (
+                <Card key={index} className="group border-slate-200 hover:border-blue-300 hover:shadow-md transition-all bg-white">
+                  <div className="p-6 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-6 flex-1">
+                      <div className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 group-hover:from-blue-100 group-hover:to-blue-200 transition-colors flex-shrink-0">
+                        <span className="text-xs font-bold text-blue-600 mb-1">{sesion.turno.toUpperCase()}</span>
+                        <span className="text-base font-black text-blue-900">{sesion.hora_inicio}</span>
+                        <span className="text-xs text-blue-600">a</span>
+                        <span className="text-base font-black text-blue-900">{sesion.hora_fin}</span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Badge 
-                          variant={clase.estado === 'programada' ? 'secondary' : 'default'}
-                          className="font-bold px-4 py-2"
-                        >
-                          {clase.estado}
-                        </Badge>
-                        <button className="p-3 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-100">
-                          <ChevronRight className="w-5 h-5" />
-                        </button>
+                      <div className="flex-1">
+                        <h4 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {sesion.curso_nombre}
+                        </h4>
+                        <div className="flex items-center gap-4 mt-2 text-sm">
+                          <span className="flex items-center gap-2 font-semibold text-slate-600">
+                            <UserIcon className="w-4 h-4 text-blue-500" />
+                            {sesion.estudiante_nombre}
+                          </span>
+                          <span className="text-slate-400">•</span>
+                          <span className="text-slate-500 italic">Docente: {sesion.tutor_nombre}</span>
+                          <span className="text-slate-400">•</span>
+                          <span className="text-slate-500 font-semibold">{sesion.duracion_horas}h</span>
+                        </div>
                       </div>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Sesiones de Hoy */}
-          <section className="space-y-4">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-              <Clock className="w-6 h-6 text-emerald-600" />
-              Programado para Hoy ({todayDate})
-            </h3>
-
-            {todayAgenda.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 bg-emerald-50 rounded-xl border-2 border-dashed border-emerald-200">
-                <CheckCircle className="w-12 h-12 mb-3 text-emerald-300" />
-                <p className="text-sm font-bold text-emerald-600 uppercase tracking-widest">Sin clases hoy. Descanso bien merecido</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {todayAgenda.map((clase) => (
-                  <div key={clase.id} className="p-4 bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
-                        {clase.hora_inicio}
-                      </div>
-                      <div>
-                        <p className="font-bold text-emerald-900">{clase.curso_nombre}</p>
-                        <p className="text-sm text-emerald-700">{clase.estudiante_nombre} • {clase.tutor_nombre}</p>
-                      </div>
-                    </div>
-                    <Badge variant="default" className="bg-emerald-600 text-white">En vivo</Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
-        {/* Sidebar - Carga de Trabajo */}
-        <div className="lg:col-span-4 space-y-6">
-          <Card className="overflow-hidden border-slate-200 bg-white">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
-              <CardTitle className="text-lg text-slate-900">Carga de Trabajo</CardTitle>
-              <CardDescription>Actividad de docentes hoy</CardDescription>
-            </CardHeader>
-            <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-              {resumen.length === 0 ? (
-                <div className="p-12 text-center">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                  <p className="text-slate-400 text-sm font-semibold uppercase tracking-wide">Sin datos disponibles</p>
-                </div>
-              ) : (
-                resumen.map((r, i) => (
-                  <div key={i} className="p-5 hover:bg-slate-50/70 transition-colors">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm">
-                          {r.tutor_nombre?.charAt(0) || 'T'}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 text-sm">{r.tutor_nombre}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{r.total_clases} sesión{r.total_clases !== 1 ? 'es' : ''}</p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-700 font-bold px-3">
-                        {r.total_estudiantes || 0} alum.
+                    <div className="flex items-center gap-3">
+                      <Badge 
+                        variant="secondary"
+                        className="font-bold px-4 py-2 bg-emerald-100 text-emerald-700"
+                      >
+                        Programada
                       </Badge>
-                    </div>
-                    {r.cursos && (
-                      <p className="text-xs font-medium text-slate-400 truncate italic mb-3">
-                        Cursos: {r.cursos}
-                      </p>
-                    )}
-                    <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500" 
-                        style={{ width: `${Math.min((r.total_clases / 10) * 100, 100)}%` }}
-                      />
+                      <button className="p-3 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-100">
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
-                ))
-              )}
+                </Card>
+              ))}
             </div>
-          </Card>
-
-          {/* Info Card */}
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-            <CardHeader>
-              <CardDescription className="text-blue-900 font-bold flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                Próximas Acciones
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-blue-900">
-              <p>✓ Verificar disponibilidad de tutores</p>
-              <p>✓ Confirmar matriculas activas</p>
-              <p>✓ Revisar pagos pendientes</p>
-            </CardContent>
-          </Card>
-        </div>
+          )}
+        </section>
       </div>
     </div>
-  );
 };
-
-// CheckCircle icon fallback
-const CheckCircle = (props: any) => (
-  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
 
 export default Dashboard;
