@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { Matricula, Curso, Tutor, Estudiante } from '../types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Input } from '../components/UI';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Input, Button } from '../components/UI';
 import { formatCRC } from '../lib/format';
 import { 
   Users, BookOpen, GraduationCap, 
   ClipboardList, Clock, CreditCard,
   User as UserIcon, Calendar as CalendarIcon,
-  TrendingUp, Award, ChevronRight
+  TrendingUp, Award, ChevronRight, Activity, Star
 } from 'lucide-react';
 
 interface Stats {
