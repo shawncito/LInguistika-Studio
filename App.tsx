@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, BookOpen, GraduationCap, 
   ClipboardList, CreditCard, Menu, X, Languages, Phone, 
@@ -13,6 +13,8 @@ import Cursos from './views/Cursos';
 import Estudiantes from './views/Estudiantes';
 import Matriculas from './views/Matriculas';
 import Pagos from './views/Pagos';
+import Login from './views/Login';
+import { auth } from './services/api';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,9 +22,9 @@ const Sidebar = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { name: 'Estudiantes', path: '/estudiantes', icon: <GraduationCap className="w-5 h-5" /> },
     { name: 'Tutores', path: '/tutores', icon: <Users className="w-5 h-5" /> },
     { name: 'Cursos', path: '/cursos', icon: <BookOpen className="w-5 h-5" /> },
-    { name: 'Estudiantes', path: '/estudiantes', icon: <GraduationCap className="w-5 h-5" /> },
     { name: 'Matrículas', path: '/matriculas', icon: <ClipboardList className="w-5 h-5" /> },
     { name: 'Pagos', path: '/pagos', icon: <CreditCard className="w-5 h-5" /> },
   ];
@@ -134,25 +136,46 @@ const AppBar = () => (
     </div>
 );
 
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!auth.getToken()) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+const ProtectedLayout: React.FC = () => (
+  <div className="flex min-h-screen bg-[#f8fafc]">
+    <Sidebar />
+    <main className="flex-grow lg:ml-64 flex flex-col">
+      <AppBar />
+      <div className="p-10 max-w-7xl mx-auto w-full animate-in fade-in duration-700">
+        <Outlet />
+      </div>
+    </main>
+  </div>
+);
+
 const App: React.FC = () => {
   return (
     <HashRouter>
-      <div className="flex min-h-screen bg-[#f8fafc]">
-        <Sidebar />
-        <main className="flex-grow lg:ml-64 flex flex-col">
-          <AppBar />
-          <div className="p-10 max-w-7xl mx-auto w-full animate-in fade-in duration-700">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/tutores" element={<Tutores />} />
-              <Route path="/cursos" element={<Cursos />} />
-              <Route path="/estudiantes" element={<Estudiantes />} />
-              <Route path="/matriculas" element={<Matriculas />} />
-              <Route path="/pagos" element={<Pagos />} />
-            </Routes>
-          </div>
-        </main>
-      </div>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          element={
+            <RequireAuth>
+              <ProtectedLayout />
+            </RequireAuth>
+          }
+        >
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/tutores" element={<Tutores />} />
+          <Route path="/cursos" element={<Cursos />} />
+          <Route path="/estudiantes" element={<Estudiantes />} />
+          <Route path="/matriculas" element={<Matriculas />} />
+          <Route path="/pagos" element={<Pagos />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </HashRouter>
   );
 };
