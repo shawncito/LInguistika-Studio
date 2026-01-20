@@ -292,6 +292,7 @@ const Dashboard: React.FC = () => {
         </section>
       </div>
     </div>
+  );
 };
 
 export default Dashboard;
