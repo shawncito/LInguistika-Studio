@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { api } from '../services/mockApi';
+import { api } from '../services/api';
 import { Pago, Tutor, EstadoPago } from '../types';
 import { Button, Card, Badge, Input, Label, Select, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/UI';
 import { CreditCard, Filter, History, Download, DollarSign, Search, CheckCircle2 } from 'lucide-react';
+import { formatCRC, formatDateCR } from '../lib/format';
 
 const Pagos: React.FC = () => {
   const [pagos, setPagos] = useState<Pago[]>([]);
@@ -68,12 +69,18 @@ const Pagos: React.FC = () => {
           <p className="text-slate-500 font-medium mt-3">Tesorería y liquidación de honorarios docentes</p>
         </div>
         <div className="flex items-center gap-4">
-            <Button variant="secondary" className="gap-2 h-12 shadow-sm">
-                <Download className="w-5 h-5" /> Exportar Registro
-            </Button>
-            <Button variant="outline" className="h-12 border-blue-600 text-blue-600 hover:bg-blue-50 px-8">
-                Auditar Pagos
-            </Button>
+          <Button
+            variant="secondary"
+            className="gap-2 h-12 shadow-sm border-blue-200 text-blue-700 hover:bg-blue-50"
+          >
+            <Download className="w-5 h-5" /> Exportar Registro
+          </Button>
+          <Button
+            variant="outline"
+            className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+          >
+            Auditar Pagos
+          </Button>
         </div>
       </header>
 
@@ -96,11 +103,11 @@ const Pagos: React.FC = () => {
                             className="bg-slate-50 border-slate-200"
                         >
                             <option value={0}>Selecciona un profesional...</option>
-                            {tutores.map(t => <option key={t.id} value={t.id}>{t.nombre} ({t.tarifa_por_hora}€/h)</option>)}
+                          {tutores.map(t => <option key={t.id} value={t.id}>{t.nombre} ({formatCRC(t.tarifa_por_hora)}/h)</option>)}
                         </Select>
                         </div>
                         <div>
-                        <Label>Monto a Pagar (€) *</Label>
+                        <Label>Monto a Pagar (₡) *</Label>
                         <Input 
                             type="number" 
                             step="0.01" 
@@ -119,7 +126,11 @@ const Pagos: React.FC = () => {
                             className="bg-slate-50 border-slate-200"
                         />
                         </div>
-                        <Button type="submit" variant="primary" className="w-full h-14 text-base font-black shadow-lg shadow-blue-100 mt-4 rounded-2xl">
+                        <Button
+                          type="submit"
+                          variant="primary"
+                          className="w-full h-14 text-base font-black shadow-lg shadow-blue-100 mt-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white"
+                        >
                             Emitir Pago Ahora
                         </Button>
                     </form>
@@ -148,7 +159,7 @@ const Pagos: React.FC = () => {
             </div>
             <div className="flex flex-col items-end">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Monto Total Filtrado</span>
-              <span className="text-4xl font-black text-slate-900 tracking-tighter">{totalFiltered.toFixed(2)}€</span>
+              <span className="text-4xl font-black text-slate-900 tracking-tighter">{formatCRC(totalFiltered)}</span>
             </div>
           </div>
 
@@ -177,7 +188,7 @@ const Pagos: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center font-black text-slate-900 text-base">
-                      {p.monto.toFixed(2)}€
+                      {formatCRC(p.monto)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={p.estado === EstadoPago.PAGADO ? 'success' : 'warning'} className="font-extrabold px-4">
@@ -186,7 +197,7 @@ const Pagos: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-slate-500 font-bold">
-                      {new Date(p.fecha_pago).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                      {formatDateCR(p.fecha_pago)}
                     </TableCell>
                     <TableCell className="text-slate-400 italic text-sm">
                       {p.descripcion || 'Sin concepto'}
