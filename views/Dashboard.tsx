@@ -49,7 +49,7 @@ const Dashboard: React.FC = () => {
       const diaSemana = getDiaSemana(fecha);
       
       // Obtener matrículas activas con sus relaciones
-      const matriculas = await api.matriculas.getAll();
+      const matriculas = (await api.matriculas.getAll()).filter(m => !!m.estado);
       const cursosPromises = matriculas.map(m => api.cursos.getById(m.curso_id));
       const tutoresPromises = matriculas.map(m => api.tutores.getById(m.tutor_id));
       const estudiantesPromises = matriculas.map(m => api.estudiantes.getById(m.estudiante_id));
@@ -68,8 +68,8 @@ const Dashboard: React.FC = () => {
         const estudiante = estudiantes[index];
 
         // Verificar si el curso tiene clase este día
-        if (curso.dias_schedule && curso.dias_schedule[diaSemana]) {
-          const schedule = curso.dias_schedule[diaSemana];
+        if (curso?.dias_schedule && (curso.dias_schedule as any)[diaSemana]) {
+          const schedule = (curso.dias_schedule as any)[diaSemana];
           sesiones.push({
             matricula_id: matricula.id,
             curso_nombre: curso.nombre,
@@ -79,6 +79,19 @@ const Dashboard: React.FC = () => {
             hora_fin: schedule.hora_fin,
             duracion_horas: schedule.duracion_horas || 0,
             turno: schedule.turno
+          });
+        } else if (curso?.dias_turno && (curso.dias_turno as any)[diaSemana]) {
+          // Fallback: si solo hay turno (Tarde/Noche) sin horas, mostrar sesión sin hora
+          const turno = (curso.dias_turno as any)[diaSemana];
+          sesiones.push({
+            matricula_id: matricula.id,
+            curso_nombre: curso.nombre,
+            estudiante_nombre: estudiante.nombre,
+            tutor_nombre: tutor.nombre,
+            hora_inicio: '—',
+            hora_fin: '—',
+            duracion_horas: 0,
+            turno: turno
           });
         }
       });
