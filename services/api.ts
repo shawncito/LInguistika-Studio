@@ -108,6 +108,10 @@ export const api = {
       const res = await http.get<Estudiante[]>('/estudiantes');
       return res.data;
     },
+    getById: async (id: number): Promise<Estudiante | undefined> => {
+      const res = await http.get<Estudiante>(`/estudiantes/${id}`);
+      return res.data;
+    },
     create: async (data: Partial<Estudiante>): Promise<Estudiante> => {
       const res = await http.post<Estudiante>('/estudiantes', data);
       return res.data;
@@ -193,6 +197,18 @@ export const api = {
         cursos: t.cursos,
         estudiantes: t.estudiantes,
       }));
+    },
+    completarSesion: async (matriculaId: number, fecha: string): Promise<any> => {
+      const res = await http.post(`/dashboard/sesion/${matriculaId}/${fecha}/completar`);
+      return res.data as any;
+    },
+    cancelarSesionDia: async (matriculaId: number, fecha: string): Promise<any> => {
+      const res = await http.post(`/dashboard/sesion/${matriculaId}/${fecha}/cancelar-dia`);
+      return res.data as any;
+    },
+    cancelarPermanente: async (matriculaId: number): Promise<any> => {
+      const res = await http.post(`/dashboard/sesion/${matriculaId}/cancelar-permanente`);
+      return res.data as any;
     },
   },
 

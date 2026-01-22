@@ -32,8 +32,12 @@ interface SesionDelDia {
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Fecha de hoy usando zona horaria de Costa Rica
+  const crToday = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' });
+  const [hoy, setHoy] = useState<string>(crToday);
+  const [selectedDate, setSelectedDate] = useState<string>(crToday);
   const [sesionesDelDia, setSesionesDelDia] = useState<SesionDelDia[]>([]);
+  const [sesionesHoy, setSesionesHoy] = useState<SesionDelDia[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Función para obtener el día de la semana en español
@@ -43,17 +47,37 @@ const Dashboard: React.FC = () => {
     return dias[date.getDay()];
   };
 
-  // Función para calcular sesiones del día desde matrículas
-  const calcularSesionesDelDia = async (fecha: string) => {
+  // Función para calcular sesiones del día: primero intenta backend, luego fallback local
+  // IMPORTANTE: Las sesiones SOLO salen de MATRÍCULAS ACTIVAS (estado=true)
+  // Si un curso existe pero no tiene matrículas, NO aparecerá en la agenda
+  const calcularSesionesDelDia = async (fecha: string, setSesiones: (sesiones: SesionDelDia[]) => void) => {
     try {
+      // 1) Intentar obtener agenda desde backend (incluye fallback del servidor)
+      const desdeServidor = await api.dashboard.getAgenda(fecha).catch(() => []);
+      if (desdeServidor && desdeServidor.length > 0) {
+        const sesiones = desdeServidor.map((c: any) => ({
+          matricula_id: c.matricula_id ?? 0,
+          curso_nombre: c.curso_nombre ?? 'Curso',
+          estudiante_nombre: c.estudiante_nombre ?? 'Estudiante',
+          tutor_nombre: c.tutor_nombre ?? 'Tutor',
+          hora_inicio: c.hora_inicio ?? '—',
+          hora_fin: c.hora_fin ?? '—',
+          duracion_horas: c.duracion_horas ?? 0,
+          turno: c.turno ?? '—',
+        })) as SesionDelDia[];
+        sesiones.sort((a, b) => String(a.hora_inicio).localeCompare(String(b.hora_inicio)));
+        setSesiones(sesiones);
+        return;
+      }
+
+      // 2) Fallback local desde matrículas y cursos
+      // Calcular el día de la semana para la fecha seleccionada
       const diaSemana = getDiaSemana(fecha);
-      
-      // Obtener matrículas activas con sus relaciones
+      // Obtener SOLO matrículas activas (estado = true)
       const matriculas = (await api.matriculas.getAll()).filter(m => !!m.estado);
       const cursosPromises = matriculas.map(m => api.cursos.getById(m.curso_id));
       const tutoresPromises = matriculas.map(m => api.tutores.getById(m.tutor_id));
       const estudiantesPromises = matriculas.map(m => api.estudiantes.getById(m.estudiante_id));
-      
       const [cursos, tutores, estudiantes] = await Promise.all([
         Promise.all(cursosPromises),
         Promise.all(tutoresPromises),
@@ -61,13 +85,12 @@ const Dashboard: React.FC = () => {
       ]);
 
       const sesiones: SesionDelDia[] = [];
-
+      // Para cada matrícula activa, verificar si el curso tiene clase en el día solicitado
       matriculas.forEach((matricula, index) => {
         const curso = cursos[index];
         const tutor = tutores[index];
         const estudiante = estudiantes[index];
-
-        // Verificar si el curso tiene clase este día
+        // Verificar si el curso tiene horario definido (dias_schedule) para este día de la semana
         if (curso?.dias_schedule && (curso.dias_schedule as any)[diaSemana]) {
           const schedule = (curso.dias_schedule as any)[diaSemana];
           sesiones.push({
@@ -81,7 +104,6 @@ const Dashboard: React.FC = () => {
             turno: schedule.turno
           });
         } else if (curso?.dias_turno && (curso.dias_turno as any)[diaSemana]) {
-          // Fallback: si solo hay turno (Tarde/Noche) sin horas, mostrar sesión sin hora
           const turno = (curso.dias_turno as any)[diaSemana];
           sesiones.push({
             matricula_id: matricula.id,
@@ -95,13 +117,11 @@ const Dashboard: React.FC = () => {
           });
         }
       });
-
-      // Ordenar por hora de inicio
-      sesiones.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
-      setSesionesDelDia(sesiones);
+      sesiones.sort((a, b) => String(a.hora_inicio).localeCompare(String(b.hora_inicio)));
+      setSesiones(sesiones);
     } catch (error) {
       console.error('Error al calcular sesiones:', error);
-      setSesionesDelDia([]);
+      setSesiones([]);
     }
   };
 
@@ -118,14 +138,21 @@ const Dashboard: React.FC = () => {
       }));
       setStats(statsData);
       
+      // Calcular sesiones de HOY (usando fecha Costa Rica)
+      if (hoy) {
+        await calcularSesionesDelDia(hoy, setSesionesHoy);
+      }
+      
       // Calcular sesiones del día seleccionado
-      await calcularSesionesDelDia(selectedDate);
+      if (selectedDate) {
+        await calcularSesionesDelDia(selectedDate, setSesionesDelDia);
+      }
     } catch (err) {
       console.error('Error en dashboard:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, hoy]);
 
   useEffect(() => {
     fetchData();
@@ -238,6 +265,90 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-10">
+        {/* Sesiones de Hoy */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+              <CalendarIcon className="w-6 h-6 text-emerald-600" />
+              Sesiones de Hoy
+            </h2>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              {hoy ? new Date(hoy + 'T00:00:00').toLocaleDateString('es-CR') : '—'}
+            </div>
+          </div>
+
+          {sesionesHoy.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+              <Clock className="w-12 h-12 mb-3 text-slate-300" />
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sin sesiones hoy</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sesionesHoy.map((sesion, index) => {
+                const ahora = new Date();
+                const [hIni, mIni] = String(sesion.hora_inicio).split(':').map(Number);
+                const [hFin, mFin] = String(sesion.hora_fin).split(':').map(Number);
+                const inicioDate = new Date(); inicioDate.setHours(hIni || 0, mIni || 0, 0, 0);
+                const finDate = new Date(); finDate.setHours(hFin || 0, mFin || 0, 0, 0);
+                const puedeMarcarDada = isFinite(hIni) && isFinite(mIni) && ahora >= finDate; // ya pasó fin
+                const hoy = new Date().toISOString().split('T')[0];
+                return (
+                  <Card key={`hoy-${sesion.matricula_id}-${index}`} className="group border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all bg-white">
+                    <div className="p-6 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-6 flex-1">
+                        <div className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 group-hover:from-emerald-100 group-hover:to-emerald-200 transition-colors flex-shrink-0">
+                          <span className="text-xs font-bold text-emerald-700 mb-1">{sesion.turno.toUpperCase()}</span>
+                          <span className="text-base font-black text-emerald-900">{sesion.hora_inicio}</span>
+                          <span className="text-xs text-emerald-700">a</span>
+                          <span className="text-base font-black text-emerald-900">{sesion.hora_fin}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                            {sesion.curso_nombre}
+                          </h4>
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <span className="flex items-center gap-2 font-semibold text-slate-600">
+                              <UserIcon className="w-4 h-4 text-emerald-500" />
+                              {sesion.estudiante_nombre}
+                            </span>
+                            <span className="text-slate-400">•</span>
+                            <span className="text-slate-500 italic">Docente: {sesion.tutor_nombre}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="text-slate-500 font-semibold">{sesion.duracion_horas}h</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="secondary"
+                          className={`px-4 py-2 ${puedeMarcarDada ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                          disabled={!puedeMarcarDada}
+                          onClick={async () => {
+                            await api.dashboard.completarSesion(sesion.matricula_id, hoy);
+                            await fetchData();
+                          }}
+                        >
+                          Marcar Dada
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700"
+                          onClick={async () => {
+                            await api.dashboard.cancelarSesionDia(sesion.matricula_id, hoy);
+                            await fetchData();
+                          }}
+                        >
+                          Cancelar Hoy
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {/* Agenda de Sesiones - Fecha Seleccionada */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
@@ -293,6 +404,16 @@ const Dashboard: React.FC = () => {
                       >
                         Programada
                       </Badge>
+                      <Button
+                        variant="destructive"
+                        className="px-4 py-2 bg-red-600 text-white hover:bg-red-700"
+                        onClick={async () => {
+                          await api.dashboard.cancelarPermanente(sesion.matricula_id);
+                          await fetchData();
+                        }}
+                      >
+                        Cancelar para siempre
+                      </Button>
                       <button className="p-3 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-100">
                         <ChevronRight className="w-5 h-5" />
                       </button>
